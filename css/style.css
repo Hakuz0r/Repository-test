@@ -1,7 +1,8 @@
 body {
     background-color: #34ef34 ;
-    color: rgb(158, 98, 98);
+    color: blue;
     font-size: 13px;
     font-weight: 600;
     max-width: 200px;
+    border-radius: 20px;
 }
