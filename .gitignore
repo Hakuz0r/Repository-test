@@ -1,2 +1,81 @@
-test.txt
- 
+# 1. Установка библиотек (тихий режим)
+!pip install biopython -q
+!apt-get install -y muscle -qq
+
+import os
+from Bio import AlignIO, Phylo
+from Bio.Phylo.TreeConstruction import DistanceCalculator, DistanceTreeConstructor
+import matplotlib.pyplot as plt
+
+# --- БЛОК ПРОВЕРКИ ФАЙЛА ---
+print("📂 Проверяю файлы в папке...")
+files = os.listdir('.') # Смотрим, что лежит в текущей папке
+fasta_files = [f for f in files if f.endswith('.fasta') or f.endswith('.txt')]
+
+if not fasta_files:
+    print("❌ ОШИБКА: Python не видит ни одного файла .fasta!")
+    print("Что делать: нажмите значок Папки слева и перетащите туда ваш скачанный файл.")
+    print("Текущие файлы в папке:", files)
+    # Прерываем выполнение, если файла нет
+    raise FileNotFoundError("Загрузите файл с данными!")
+else:
+    print(f"✅ Найдены файлы: {fasta_files}")
+    # Берем первый попавшийся fasta файл (скорее всего это твой)
+    target_file = "sequences.fasta"
+    print(f"👉 Буду использовать файл: {target_file}")
+
+# --- АНАЛИЗ ---
+
+# 2. Выравнивание (Muscle)
+output_aligned = "aligned_data.fasta"
+print(f"⏳ Выравниваю последовательности из {target_file}...")
+# Запускаем muscle через систему (самый надежный способ)
+os.system(f"muscle -in {target_file} -out {output_aligned}")
+print("✅ Выравнивание готово.")
+
+# 3. Строим дерево
+print("🌳 Строю дерево...")
+try:
+    alignment = AlignIO.read(output_aligned, "fasta")
+except ValueError:
+    print("❌ Ошибка чтения выравнивания! Возможно, файл пустой или не в том формате.")
+    raise
+
+calculator = DistanceCalculator('identity')
+dm = calculator.get_distance(alignment)
+constructor = DistanceTreeConstructor()
+tree = constructor.nj(dm)
+
+# 4. Рисуем график
+plt.figure(figsize=(15, 10)) # Размер побольше
+plt.title(f"Филогенетическое дерево (по файлу {target_file})")
+Phylo.draw(tree, do_show=False)
+plt.savefig("my_tree.png")
+plt.show()
+
+# 5. Таблица мутаций (Сравниваем первый и последний штамм из ТВОЕГО файла)
+seq_old = alignment[0]
+seq_new = alignment[-1]
+
+print("\n" + "="*50)
+print(f"🧬 АНАЛИЗ МУТАЦИЙ (по твоим данным)")
+print(f"Сравниваем: {seq_old.id} (Первый в списке)")
+print(f"С штаммом:  {seq_new.id} (Последний в списке)")
+print("="*50)
+
+count = 0
+print(f"{'Позиция':<10} | {'Было':<5} -> {'Стало':<5}")
+print("-" * 30)
+
+for i in range(len(seq_old)):
+    # Пропускаем пробелы выравнивания
+    if seq_old[i] == "-" or seq_new[i] == "-":
+        continue
+    if seq_old[i] != seq_new[i]:
+        count += 1
+        # Выводим первые 15 мутаций
+        if count <= 15:
+            print(f"{i+1:<10} | {seq_old[i]:<5} -> {seq_new[i]:<5}")
+
+print("-" * 30)
+print(f"Всего найдено отличий: {count}")
